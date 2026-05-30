@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CircuitEvolve — CE-1 Hardware Optimization Engine</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Canvas Background */
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+
+        /* Dark overlay vignette for readability */
+        .vignette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+        }
+
+        /* Preloader */
+        .preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000000;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 1px;
+            transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .preloader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .preloader-content {
+            text-align: center;
+            color: #666666;
+        }
+
+        .preloader-text {
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            margin-bottom: 20px;
+            color: #666666;
+        }
+
+        .preloader-bar {
+            width: 200px;
+            height: 1px;
+            background-color: #1a1a1a;
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .preloader-progress {
+            height: 100%;
+            background-color: #ffffff;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .preloader-percentage {
+            font-size: 10px;
+            letter-spacing: 2px;
+            margin-top: 12px;
+            color: #666666;
+        }
+
+        /* Main Content Container */
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header Navigation */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+        }
+
+        .header-logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 1.2px;
+            color: #666666;
+        }
+
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Sections */
+        .section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 100px 40px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .section:first-of-type {
+            margin-top: 60px;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            flex-direction: column;
+            justify-content: center;
+            text-align: left;
+        }
+
+        .hero-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 72px;
+            font-weight: 300;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 30px;
+            max-width: 900px;
+        }
+
+        .hero-subtitle {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            letter-spacing: -0.5px;
+            color: #999999;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-bottom: 50px;
+        }
+
+        .cta-button {
+            width: fit-content;
+            padding: 14px 32px;
+            background-color: #ffffff;
+            color: #000000;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .cta-button:hover {
+            letter-spacing: 3px;
+            background-color: #f0f0f0;
+        }
+
+        /* Repository Matrix */
+        .matrix-section {
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .matrix-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1.5px;
+            margin-bottom: 80px;
+            max-width: 600px;
+        }
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        .matrix-column {
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            padding-left: 30px;
+        }
+
+        .matrix-column-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #999999;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .matrix-column-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 300;
+            letter-spacing: -0.5px;
+            line-height: 1.7;
+            color: #cccccc;
+        }
+
+        /* PPA Metrics Section */
+        .metrics-section {
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .metrics-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1.5px;
+            margin-bottom: 80px;
+            max-width: 600px;
+        }
+
+        .metrics-grid {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .metrics-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .metrics-header-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #666666;
+            font-weight: 600;
+        }
+
+        .metrics-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 40px;
+            padding: 30px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .metrics-row:last-child {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .metrics-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            color: #cccccc;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .metrics-label {
+            color: #666666;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .metrics-value {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0px;
+        }
+
+        /* Form Section */
+        .form-section {
+            flex-direction: column;
+            justify-content: center;
+            max-width: 600px;
+        }
+
+        .form-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: -1.5px;
+            margin-bottom: 60px;
+            line-height: 1.2;
+        }
+
+        .form-subtitle {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            color: #999999;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        .form-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #666666;
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .form-input {
+            width: 100%;
+            background-color: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            padding: 12px 0;
+            letter-spacing: -0.5px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input::placeholder {
+            color: #555555;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-bottom-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .form-submit {
+            margin-top: 50px;
+            width: 100%;
+            padding: 16px;
+            background-color: #ffffff;
+            color: #000000;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .form-submit:hover {
+            letter-spacing: 3px;
+            background-color: #f0f0f0;
+        }
+
+        .form-submit:active {
+            transform: scale(0.98);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 60px 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #666666;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Success Message */
+        .form-success {
+            display: none;
+            padding: 40px;
+            background-color: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .form-success.show {
+            display: block;
+        }
+
+        .form-success-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #4ade80;
+            margin-bottom: 12px;
+        }
+
+        .form-success-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            color: #cccccc;
+            line-height: 1.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 42px;
+                letter-spacing: -1px;
+            }
+
+            .hero-subtitle {
+                font-size: 14px;
+            }
+
+            .matrix-title,
+            .metrics-title,
+            .form-title {
+                font-size: 32px;
+                letter-spacing: -0.8px;
+            }
+
+            .matrix-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-header,
+            .metrics-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .section {
+                padding: 60px 20px;
+            }
+
+            .header {
+                padding: 0 20px;
+            }
+
+            .matrix-column {
+                padding-left: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas Background -->
+    <canvas id="scrollCanvas"></canvas>
+    
+    <!-- Vignette Overlay -->
+    <div class="vignette-overlay"></div>
+
+    <!-- Preloader -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-content">
+            <div class="preloader-text">INITIALIZING RTL OPTIMIZATION ENGINE</div>
+            <div class="preloader-bar">
+                <div class="preloader-progress" id="preloaderProgress"></div>
+            </div>
+            <div class="preloader-percentage" id="preloaderPercentage">0%</div>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <div class="header">
+        <div class="header-logo">CircuitEvolve</div>
+        <div class="header-status">
+            <span>SYS_STATUS // OPERATIONAL</span>
+            <div class="status-indicator"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content-wrapper">
+        <!-- Section 01: Hero Gateway -->
+        <section class="section hero-section" id="hero">
+            <h1 class="hero-title">DESIGN. ITERATE. CONVERGE.</h1>
+            <p class="hero-subtitle">A simulator-grounded search system for topology and sizing optimization in analog circuit design. circuitEvolve combines LLM-guided circuit edits with SPICE simulation feedback to discover designs engineers would never find manually — enabling automated exploration of complete circuit structures rather than restricting optimization to parameter tuning.</p>
+            <button class="cta-button" onclick="document.getElementById('form-section').scrollIntoView({ behavior: 'smooth' });">REQUEST DEMO</button>
+        </section>
+
+        <!-- Section 02: The Problem -->
+        <section class="section matrix-section" id="matrix">
+            <h2 class="matrix-title">WHY ANALOG DESIGN HAS STALLED</h2>
+            <div class="matrix-grid">
+                <div class="matrix-column">
+                    <div class="matrix-column-title">Manual Optimization Process</div>
+                    <p class="matrix-column-text">Analog circuit design remains fundamentally a manual process. Engineers iteratively explore topologies, adjust device sizing, and repeatedly validate through SPICE simulation — often requiring thousands of simulations and significant time. Design space exploration is guided by expert intuition and trial-and-error.</p>
+                </div>
+                <div class="matrix-column">
+                    <div class="matrix-column-title">The Design Gap</div>
+                    <p class="matrix-column-text">Digital design became software-driven decades ago. Analog never made that transition. Every transistor dimension, bias point, and compensation network shapes system behavior. Unlike digital synthesis, analog remains where nonlinear physics and tight constraints dominate. No off-the-shelf automation exists.</p>
+                </div>
+                <div class="matrix-column">
+                    <div class="matrix-column-title">The Scale Constraint</div>
+                    <p class="matrix-column-text">Nearly every system powering the physical world depends on analog silicon — power management, sensing, control circuits. The global supply of analog expertise cannot keep pace with demand. Analog blocks increasingly define the critical path of chip development across industry.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 03: System Architecture -->
+        <section class="section metrics-section" id="metrics">
+            <h2 class="metrics-title">THE SIX-STEP OPTIMIZATION LOOP</h2>
+            <div class="metrics-grid">
+                <div class="metrics-header">
+                    <div class="metrics-header-cell">Step</div>
+                    <div class="metrics-header-cell">Process</div>
+                    <div class="metrics-header-cell">Output</div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 01</span>
+                        <span class="metrics-value">Specifications</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Design Specifications & Baseline</span>
+                        <span class="metrics-value">Circuit Template</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Input</span>
+                        <span class="metrics-value">Problem Spec + Rules</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 02</span>
+                        <span class="metrics-value">LLM Edits</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Large Language Model proposes structural and parameter modifications</span>
+                        <span class="metrics-value">Candidate Circuits</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Generation</span>
+                        <span class="metrics-value">Topology + Sizing</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 03</span>
+                        <span class="metrics-value">Harness Rebuild</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Integrate edits into standardized simulation environment</span>
+                        <span class="metrics-value">Complete Netlist</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Integration</span>
+                        <span class="metrics-value">SPICE Ready</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 04</span>
+                        <span class="metrics-value">Simulation</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Evaluate with ngspice, Spectre, or HSPICE</span>
+                        <span class="metrics-value">Performance Metrics</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Evaluation</span>
+                        <span class="metrics-value">Ground Truth</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 05</span>
+                        <span class="metrics-value">Fitness Scoring</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Convert results into fitness score against specifications</span>
+                        <span class="metrics-value">Quality Score</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Scoring</span>
+                        <span class="metrics-value">0.0 - 1.0</span>
+                    </div>
+                </div>
+                <div class="metrics-row">
+                    <div class="metrics-cell">
+                        <span class="metrics-label">STEP 06</span>
+                        <span class="metrics-value">Evolution</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Evolutionary selection preserves multiple design lineages</span>
+                        <span class="metrics-value">Next Generation</span>
+                    </div>
+                    <div class="metrics-cell">
+                        <span class="metrics-label">Selection → Loop</span>
+                        <span class="metrics-value">Population-Based</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Recency Bias Solution -->
+        <section class="section matrix-section" id="recency">
+            <h2 class="matrix-title">OVERCOMING RECENCY BIAS</h2>
+            <div class="matrix-grid">
+                <div class="matrix-column">
+                    <div class="matrix-column-title">The Problem</div>
+                    <p class="matrix-column-text">Agentic optimization systems relying on sequential reasoning exhibit strong recency bias — generating candidates primarily from the most recent design state. When this trajectory encounters a local optimum, the system fails to recover earlier alternatives that could lead to better solutions. Single-trajectory search gets trapped.</p>
+                </div>
+                <div class="matrix-column">
+                    <div class="matrix-column-title">Population-Based Solution</div>
+                    <p class="matrix-column-text">circuitEvolve maintains a population of candidate circuits across multiple generations, not a single trajectory. Multiple design lineages are preserved simultaneously, allowing the system to revisit earlier branches and continue exploring structural variations that initially appeared less promising.</p>
+                </div>
+                <div class="matrix-column">
+                    <div class="matrix-column-title">Branch Recovery</div>
+                    <p class="matrix-column-text">In empirical evaluations, the final optimized circuit does not descend from the most recent iteration — it emerges from an earlier branch in the evolutionary search tree. This demonstrates the system's ability to maintain exploration across multiple design families rather than prematurely committing to a single trajectory.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Empirical Results -->
+        <section class="section" id="benchmarks" style="flex-direction: column; justify-content: center;">
+            <h2 class="matrix-title" style="margin-bottom: 60px;">EMPIRICAL EVALUATION RESULTS</h2>
+            
+            <div style="margin-bottom: 80px;">
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 300; letter-spacing: -0.8px; margin-bottom: 30px;">Comparison I: BAGNet (Reinforcement Learning)</h3>
+                <div class="matrix-grid">
+                    <div class="matrix-column" style="border: none; padding: 0;">
+                        <div class="matrix-column-title">Performance Metric</div>
+                        <p class="matrix-column-text"><strong>Peak Performance:</strong> circuitEvolve 1.00 vs BAGNet 0.70 → <span style="color: #4ade80;">1.43× higher</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Evaluations to Target:</strong> circuitEvolve 74 vs BAGNet 589 → <span style="color: #4ade80;">7.96× fewer</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Evaluation Speed:</strong> circuitEvolve 335ms vs BAGNet 4,153ms → <span style="color: #4ade80;">12.4× faster</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 80px;">
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 300; letter-spacing: -0.8px; margin-bottom: 30px;">Comparison II: EEsizer (Industrial Sizing Framework)</h3>
+                <div class="matrix-grid">
+                    <div class="matrix-column" style="border: none; padding: 0;">
+                        <div class="matrix-column-title">Performance Metric</div>
+                        <p class="matrix-column-text"><strong>Peak Performance:</strong> circuitEvolve 8.3003 vs EEsizer 5.1869 → <span style="color: #4ade80;">1.60× higher</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Evaluations to Target:</strong> circuitEvolve 7 vs EEsizer 25 → <span style="color: #4ade80;">3.57× fewer</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Efficiency Metric:</strong> circuitEvolve 68,373 vs EEsizer 9,600 → <span style="color: #4ade80;">7.12× better</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 60px;">
+                <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 300; letter-spacing: -0.8px; margin-bottom: 30px;">Comparison III: AmpAgent (LLM-Guided Optimization)</h3>
+                <div class="matrix-grid">
+                    <div class="matrix-column" style="border: none; padding: 0;">
+                        <div class="matrix-column-title">Performance Metric</div>
+                        <p class="matrix-column-text"><strong>Peak Performance (IFOMS):</strong> circuitEvolve 429,908 vs AmpAgent 322,340 → <span style="color: #4ade80;">1.33× higher</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Evaluations to Target:</strong> circuitEvolve 3 vs AmpAgent 20 → <span style="color: #4ade80;">6.67× fewer</span></p>
+                        <p class="matrix-column-text" style="margin-top: 12px;"><strong>Overall Summary:</strong> Between <span style="color: #4ade80;">3.57× and 7.96× fewer evaluations</span> across all baselines</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="section form-section" id="form-section">
+            <h2 class="form-title">REQUEST EARLY ACCESS</h2>
+            <p class="form-subtitle">Be among the first to experience simulation-grounded analog circuit optimization. Join early-access participants and shape the future of circuit design automation.</p>
+            <form id="joinForm" onsubmit="handleFormSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" placeholder="Enter your full name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Organization</label>
+                    <input type="text" class="form-input" placeholder="Company or institution name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Expertise Level</label>
+                    <input type="text" class="form-input" placeholder="e.g., Analog Design, Topology Optimization, IC Design" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Circuit Application (Optional)</label>
+                    <input type="text" class="form-input" placeholder="e.g., Op-Amps, Power Management, Amplifiers, ADCs">
+                </div>
+                <button type="submit" class="form-submit">REQUEST DEMO</button>
+                <div class="form-success" id="formSuccess">
+                    <div class="form-success-title">Request Submitted</div>
+                    <div class="form-success-text">Thank you for your interest. We'll review your application and contact you within 3-5 business days. Visit github.com/ojaspungalia/circuitevolve for more technical details.</div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 circuitEvolve. Simulator-grounded analog circuit optimization. All rights reserved.</p>
+            <p style="margin-top: 12px;"><strong>Design. Iterate. Converge.</strong></p>
+            <p style="margin-top: 12px;">Repository: <a href="https://github.com/ojaspungalia/circuitevolve" target="_blank" style="color: #999999; text-decoration: underline;">github.com/ojaspungalia/circuitevolve</a></p>
+            <p style="margin-top: 8px; color: #555555; font-size: 9px;">Simulation: ngspice | Spectre | HSPICE | Powered by LLMs & Evolutionary Search</p>
+        </footer>
+    </div>
+
+    <script>
+        // ============================================
+        // Canvas Scroll Engine
+        // ============================================
+        class ScrollFrameEngine {
+            constructor() {
+                this.canvas = document.getElementById('scrollCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.frames = [];
+                this.currentFrameIndex = 0;
+                this.targetFrameIndex = 0;
+                this.isLoading = true;
+                this.preloader = document.getElementById('preloader');
+                this.totalFrames = 296;
+                this.loadedFrames = 0;
+
+                this.setupCanvas();
+                this.loadFrames();
+                this.setupScrollListener();
+                this.startAnimationLoop();
+            }
+
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                window.addEventListener('resize', () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    this.drawFrame();
+                });
+            }
+
+            loadFrames() {
+                const preloaderProgress = document.getElementById('preloaderProgress');
+                const preloaderPercentage = document.getElementById('preloaderPercentage');
+
+                // Fallback: hide preloader after 15 seconds anyway
+                const preloaderTimeout = setTimeout(() => {
+                    this.isLoading = false;
+                    this.preloader.classList.add('hidden');
+                    console.log('Preloader timeout - hiding anyway');
+                }, 15000);
+
+                for (let i = 1; i <= this.totalFrames; i++) {
+                    const img = new Image();
+                    const frameNum = String(i).padStart(3, '0');
+                    img.src = `assets/sequence/frame_${frameNum}.jpg`;
+                    img.crossOrigin = "anonymous";
+
+                    img.onload = () => {
+                        this.loadedFrames++;
+                        const progress = (this.loadedFrames / this.totalFrames) * 100;
+                        preloaderProgress.style.width = progress + '%';
+                        preloaderPercentage.textContent = Math.floor(progress) + '%';
+
+                        if (this.loadedFrames === this.totalFrames) {
+                            clearTimeout(preloaderTimeout);
+                            setTimeout(() => {
+                                this.isLoading = false;
+                                this.preloader.classList.add('hidden');
+                                this.drawFrame();
+                            }, 300);
+                        }
+                    };
+
+                    img.onerror = () => {
+                        this.loadedFrames++;
+                        const progress = (this.loadedFrames / this.totalFrames) * 100;
+                        preloaderProgress.style.width = progress + '%';
+                        if (this.loadedFrames === this.totalFrames) {
+                            clearTimeout(preloaderTimeout);
+                            setTimeout(() => {
+                                this.isLoading = false;
+                                this.preloader.classList.add('hidden');
+                            }, 300);
+                        }
+                    };
+
+                    this.frames.push(img);
+                }
+
+                // Draw gradient background while loading
+                this.drawGradientBackground();
+            }
+
+            drawGradientBackground() {
+                const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+                gradient.addColorStop(0, '#0a0a0a');
+                gradient.addColorStop(0.5, '#000000');
+                gradient.addColorStop(1, '#0a0a0a');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            setupScrollListener() {
+                window.addEventListener('scroll', () => {
+                    if (this.isLoading) return;
+
+                    const scrollPercentage = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
+                    this.targetFrameIndex = Math.max(
+                        0,
+                        Math.min(this.totalFrames - 1, Math.floor(scrollPercentage * this.totalFrames))
+                    );
+                });
+            }
+
+            drawFrame() {
+                if (!this.frames[this.currentFrameIndex] || !this.frames[this.currentFrameIndex].complete) return;
+
+                const img = this.frames[this.currentFrameIndex];
+                const canvasWidth = this.canvas.width;
+                const canvasHeight = this.canvas.height;
+                const imgAspect = img.width / img.height;
+                const canvasAspect = canvasWidth / canvasHeight;
+
+                let drawWidth, drawHeight, offsetX, offsetY;
+
+                if (imgAspect > canvasAspect) {
+                    drawHeight = canvasHeight;
+                    drawWidth = canvasHeight * imgAspect;
+                    offsetX = (canvasWidth - drawWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    drawWidth = canvasWidth;
+                    drawHeight = canvasWidth / imgAspect;
+                    offsetX = 0;
+                    offsetY = (canvasHeight - drawHeight) / 2;
+                }
+
+                this.ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                this.ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            }
+
+            interpolateFrame() {
+                // Linear interpolation with smooth easing
+                const distance = this.targetFrameIndex - this.currentFrameIndex;
+                const easingFactor = 0.15; // Adjust for smoothness (lower = smoother but slower)
+
+                this.currentFrameIndex += distance * easingFactor;
+
+                const roundedIndex = Math.round(this.currentFrameIndex);
+                if (roundedIndex !== Math.round(this.currentFrameIndex - distance * easingFactor)) {
+                    this.drawFrame();
+                }
+            }
+
+            startAnimationLoop() {
+                const animate = () => {
+                    this.interpolateFrame();
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+        }
+
+        // ============================================
+        // Initialize Engine on DOM Ready
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            new ScrollFrameEngine();
+        });
+
+        // ============================================
+        // Form Submission Handler
+        // ============================================
+        function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formInputs = form.querySelectorAll('.form-input');
+            const successMessage = document.getElementById('formSuccess');
+
+            // Validate all inputs
+            let isValid = true;
+            formInputs.forEach(input => {
+                if (input.hasAttribute('required') && !input.value.trim()) {
+                    input.style.borderBottomColor = '#ff6b6b';
+                    isValid = false;
+                } else {
+                    input.style.borderBottomColor = 'rgba(255, 255, 255, 0.2)';
+                }
+            });
+
+            if (!isValid) return;
+
+            // Show success message
+            const submitButton = form.querySelector('.form-submit');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'APPLICATION SUBMITTED';
+            submitButton.style.backgroundColor = '#4ade80';
+            submitButton.style.color = '#000000';
+            submitButton.disabled = true;
+
+            // Display success message
+            successMessage.classList.add('show');
+
+            // Reset form after 3 seconds
+            setTimeout(() => {
+                submitButton.textContent = originalText;
+                submitButton.style.backgroundColor = '#ffffff';
+                submitButton.style.color = '#000000';
+                submitButton.disabled = false;
+                form.reset();
+                formInputs.forEach(input => {
+                    input.style.borderBottomColor = 'rgba(255, 255, 255, 0.2)';
+                });
+            }, 3000);
+        }
+
+        // ============================================
+        // Smooth Page Transitions
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add scroll detection for header animation
+            window.addEventListener('scroll', () => {
+                const header = document.querySelector('.header');
+                if (window.scrollY > 50) {
+                    header.style.borderBottomColor = 'rgba(255, 255, 255, 0.12)';
+                } else {
+                    header.style.borderBottomColor = 'rgba(255, 255, 255, 0.08)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
