@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-space-grotesk",
-  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sans-var",
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
 });
 
 const jetBrainsMono = JetBrains_Mono({
@@ -49,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${jetBrainsMono.variable}`}
+      className={`${plusJakartaSans.variable} ${jetBrainsMono.variable}`}
     >
       <body>{children}</body>
     </html>

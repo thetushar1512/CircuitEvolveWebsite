@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import HeroLogoScene from "@/components/HeroLogoScene";
 
 export const metadata: Metadata = {
   title: "The Next Era of Analog Design | circuitEvolve",
@@ -50,16 +49,14 @@ export default function ThesisPage() {
       <nav className="tp-nav">
         <Link href="/" className="tp-back">
           <span className="tp-back-arrow">←</span>
+          <img src="/assets/ce-logo.png" alt="" className="tp-nav-logo" />
           <span className="tp-back-label">circuitEvolve</span>
         </Link>
-        <span className="tp-nav-tag">MANIFESTO // CE-RTL</span>
       </nav>
 
       {/* ── Logo hero ── */}
       <header className="tp-hero">
-        <HeroLogoScene className="hero-logo-scene--thesis" />
-
-        <p className="tp-eyebrow">circuitEvolve // manifesto</p>
+        <img src="/assets/ce-logo.png" alt="" className="tp-hero-logo" />
         <h1 className="tp-title">The Next Era of<br />Analog Design</h1>
       </header>
 
