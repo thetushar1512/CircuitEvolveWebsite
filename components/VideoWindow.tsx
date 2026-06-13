@@ -1,13 +1,33 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 
 type SimState = "idle" | "running" | "done";
 
 export default function VideoWindow() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const [simState, setSimState] = useState<SimState>("idle");
   const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    const video = videoRef.current;
+    if (!shell || !video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && simState === "idle") {
+          video.play().then(() => setSimState("running")).catch(() => {});
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [simState]);
 
   const handleSimClick = useCallback(() => {
     const video = videoRef.current;
@@ -38,7 +58,7 @@ export default function VideoWindow() {
     simState === "running" ? "RUNNING" : simState === "done" ? "COMPLETE" : "READY";
 
   return (
-    <div className="vw-shell">
+    <div className="vw-shell" ref={shellRef}>
       {/* ── Titlebar ─────────────────────────────────────────── */}
       <div className="vw-titlebar">
         <div className="vw-traffic">

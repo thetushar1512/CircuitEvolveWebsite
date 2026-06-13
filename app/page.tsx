@@ -49,15 +49,11 @@ export default function Home() {
       <section className="section theme-light section-wipe demo-section" id="demo">
         <div className="demo-card">
           <div className="demo-card-left" data-reveal>
-            <p className="mono-tag demo-card-eyebrow">CONTACT // LIMITED RUN</p>
             <h2 className="demo-card-heading">Request a Demo</h2>
             <p className="demo-card-sub">
               See how circuitEvolve can accelerate your analog circuit design
               workflow. Fill out the form and our team will get in touch.
             </p>
-            <a href="mailto:hello@circuitevolve.com" className="demo-card-email">
-              hello@circuitevolve.com
-            </a>
           </div>
           <div className="demo-card-right" data-reveal>
             <DemoForm />

@@ -14,6 +14,7 @@ const FRAME_FOCAL_Y = 0.5;
 
 type FrameState = {
   loaded: number;
+  ready: boolean;
   complete: boolean;
 };
 
@@ -35,14 +36,19 @@ export default function CanvasEngine() {
   const progressRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const framesRef = useRef<HTMLImageElement[]>([]);
+  const loadingFramesRef = useRef<Set<number>>(new Set());
+  const loadedFramesRef = useRef<Set<number>>(new Set());
+  const sequenceStartedRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   
   const targetFrameRef = useRef(POSTER_FRAME);
   const easedFrameRef = useRef(POSTER_FRAME);
   const renderedFrameRef = useRef(-1);
+  const requestedFrameRef = useRef(-1);
   
   const [frameState, setFrameState] = useState<FrameState>({
     loaded: 0,
+    ready: false,
     complete: false,
   });
 
@@ -53,7 +59,7 @@ export default function CanvasEngine() {
     if (!canvas || !context) return;
 
     let mounted = true;
-    let loadedFrames = 0;
+    let sequenceTimer: number | null = null;
 
     const resizeCanvas = () => {
       if (!canvas || !context) return;
@@ -62,9 +68,9 @@ export default function CanvasEngine() {
       canvas.height = Math.max(1, Math.floor(canvas.offsetHeight * dpr));
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       
-      const current = renderedFrameRef.current;
+      const current = requestedFrameRef.current;
       renderedFrameRef.current = -1;
-      if (current >= 0) drawFrame(current);
+      if (current >= 0) renderedFrameRef.current = drawFrame(current);
     };
 
     const drawFallback = () => {
@@ -78,14 +84,34 @@ export default function CanvasEngine() {
       context.fillRect(0, 0, w, h);
     };
 
+    const getNearestLoadedFrame = (frameIndex: number) => {
+      if (loadedFramesRef.current.has(frameIndex)) return frameIndex;
+      if (loadedFramesRef.current.has(POSTER_FRAME)) return POSTER_FRAME;
+
+      for (let offset = 1; offset < TOTAL_FRAMES; offset += 1) {
+        const previous = frameIndex - offset;
+        const next = frameIndex + offset;
+        if (previous >= 0 && loadedFramesRef.current.has(previous)) return previous;
+        if (next < TOTAL_FRAMES && loadedFramesRef.current.has(next)) return next;
+      }
+
+      return -1;
+    };
+
     const drawFrame = (frameIndex: number) => {
-      const frame = framesRef.current[frameIndex];
+      const drawableIndex = getNearestLoadedFrame(frameIndex);
+      if (drawableIndex < 0) {
+        drawFallback();
+        return -1;
+      }
+
+      const frame = framesRef.current[drawableIndex];
       const canvasWidth = canvas.offsetWidth;
       const canvasHeight = canvas.offsetHeight;
 
       if (!frame || !frame.complete || frame.naturalWidth === 0) {
         drawFallback();
-        return;
+        return -1;
       }
 
       context.fillStyle = "#000000";
@@ -111,6 +137,76 @@ export default function CanvasEngine() {
       );
 
       context.drawImage(frame, offsetX, offsetY, drawWidth, drawHeight);
+      return drawableIndex;
+    };
+
+    const loadFrame = (frameIndex: number) => {
+      if (frameIndex < 0 || frameIndex >= TOTAL_FRAMES) return;
+      if (loadedFramesRef.current.has(frameIndex) || loadingFramesRef.current.has(frameIndex)) return;
+
+      loadingFramesRef.current.add(frameIndex);
+
+      const image = new Image();
+      image.decoding = "async";
+      if (frameIndex === POSTER_FRAME) {
+        image.fetchPriority = "high";
+      }
+
+      const markLoaded = () => {
+        if (!mounted) return;
+
+        loadingFramesRef.current.delete(frameIndex);
+        loadedFramesRef.current.add(frameIndex);
+
+        const requestedFrame = requestedFrameRef.current;
+        const posterReady = loadedFramesRef.current.has(POSTER_FRAME);
+
+        if (
+          frameIndex === requestedFrame ||
+          renderedFrameRef.current === -1 ||
+          (frameIndex === POSTER_FRAME && requestedFrame < 0)
+        ) {
+          renderedFrameRef.current = drawFrame(requestedFrame >= 0 ? requestedFrame : POSTER_FRAME);
+        }
+
+        setFrameState({
+          loaded: loadedFramesRef.current.size,
+          ready: posterReady,
+          complete: loadedFramesRef.current.size >= TOTAL_FRAMES,
+        });
+      };
+
+      image.onload = markLoaded;
+      image.onerror = markLoaded;
+      image.src = `/assets/sequence/frame_${frameIndex}.jpg`;
+      framesRef.current[frameIndex] = image;
+    };
+
+    const preloadFrameWindow = (frameIndex: number, radius = 4) => {
+      loadFrame(frameIndex);
+      for (let offset = 1; offset <= radius; offset += 1) {
+        loadFrame(frameIndex - offset);
+        loadFrame(frameIndex + offset);
+      }
+    };
+
+    const startSequenceLoading = () => {
+      if (sequenceStartedRef.current) return;
+      sequenceStartedRef.current = true;
+
+      let nextIndex = 0;
+      const loadBatch = () => {
+        for (let count = 0; count < 8 && nextIndex < TOTAL_FRAMES; count += 1) {
+          loadFrame(nextIndex);
+          nextIndex += 1;
+        }
+
+        if (nextIndex < TOTAL_FRAMES && mounted) {
+          sequenceTimer = window.setTimeout(loadBatch, 90);
+        }
+      };
+
+      loadBatch();
     };
 
     const updateScrollState = () => {
@@ -148,6 +244,7 @@ export default function CanvasEngine() {
 
       // Handle Smooth Canvas Sequence Updates
       targetFrameRef.current = POSTER_FRAME + videoProgress * (TOTAL_FRAMES - 1 - POSTER_FRAME);
+      preloadFrameWindow(Math.round(targetFrameRef.current), sequenceStartedRef.current ? 3 : 1);
 
       // Handle Card Window Dimensional Scaling Properties
       if (frameRef.current) {
@@ -190,40 +287,32 @@ export default function CanvasEngine() {
         TOTAL_FRAMES - 1,
       );
 
-      if (nextFrame !== renderedFrameRef.current) {
-        renderedFrameRef.current = nextFrame;
-        drawFrame(nextFrame);
+      if (nextFrame !== requestedFrameRef.current) {
+        requestedFrameRef.current = nextFrame;
+        preloadFrameWindow(nextFrame, sequenceStartedRef.current ? 3 : 1);
+        renderedFrameRef.current = drawFrame(nextFrame);
       }
 
       rafRef.current = window.requestAnimationFrame(tick);
     };
 
-    const markLoaded = () => {
-      if (!mounted) return;
-      loadedFrames += 1;
-      
-      if (renderedFrameRef.current === -1 && framesRef.current[POSTER_FRAME]?.complete) {
-        renderedFrameRef.current = POSTER_FRAME;
-        drawFrame(POSTER_FRAME);
-      }
-
-      setFrameState({
-        loaded: loadedFrames,
-        complete: loadedFrames >= TOTAL_FRAMES,
-      });
-    };
-
     resizeCanvas();
     drawFallback();
 
-    framesRef.current = Array.from({ length: TOTAL_FRAMES }, (_, index) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.src = `/assets/sequence/frame_${index}.jpg`;
-      image.onload = markLoaded;
-      image.onerror = markLoaded;
-      return image;
-    });
+    framesRef.current = new Array(TOTAL_FRAMES);
+    preloadFrameWindow(POSTER_FRAME, 4);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          startSequenceLoading();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "900px 0px" },
+    );
+
+    observer.observe(sectionRef.current ?? canvas);
 
     updateScrollState();
     tick();
@@ -238,6 +327,10 @@ export default function CanvasEngine() {
       if (rafRef.current !== null) {
         window.cancelAnimationFrame(rafRef.current);
       }
+      if (sequenceTimer !== null) {
+        window.clearTimeout(sequenceTimer);
+      }
+      observer.disconnect();
     };
   }, []);
 

@@ -20,10 +20,10 @@ export const metadata: Metadata = {
   title: "CircuitEvolve | Repository-Scale RTL Evolution",
   description:
     "A monochromatic technical interface for CircuitEvolve: LLM-guided RTL mutation, closed-loop EDA verification, and PPA-benchmarked hardware architecture reconstruction.",
-  applicationName: "CircuitEvolve",
-  authors: [{ name: "CircuitEvolve" }],
+  applicationName: "circuitEvolve",
+  authors: [{ name: "circuitEvolve" }],
   keywords: [
-    "CircuitEvolve",
+    "circuitEvolve",
     "RTL evolution",
     "EDA",
     "Yosys",
