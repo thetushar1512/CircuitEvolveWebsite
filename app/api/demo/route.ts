@@ -1,7 +1,13 @@
-import { Resend } from "resend";
+import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 import { NextRequest, NextResponse } from "next/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const sns = new SNSClient({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -11,28 +17,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { error } = await resend.emails.send({
-    from: "circuitEvolve <onboarding@resend.dev>",
-    to: "hello@circuitevolve.com",
-    subject: `Demo request from ${first_name} ${last_name} — ${company}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 560px; color: #111;">
-        <h2 style="margin-bottom: 24px;">New Demo Request</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px 0; color: #666; width: 120px;">Name</td><td>${first_name} ${last_name}</td></tr>
-          <tr><td style="padding: 8px 0; color: #666;">Email</td><td><a href="mailto:${email}">${email}</a></td></tr>
-          <tr><td style="padding: 8px 0; color: #666;">Company</td><td>${company}</td></tr>
-          <tr><td style="padding: 8px 0; color: #666;">Job Title</td><td>${job_title || "—"}</td></tr>
-          <tr><td style="padding: 8px 0; color: #666;">Purpose</td><td>${purpose || "—"}</td></tr>
-          <tr><td style="padding: 8px 0; color: #666; vertical-align: top;">Notes</td><td>${info || "—"}</td></tr>
-        </table>
-      </div>
-    `,
-  });
+  const message = [
+    "New Demo Request — circuitEvolve",
+    "",
+    `Name:      ${first_name} ${last_name}`,
+    `Email:     ${email}`,
+    `Company:   ${company}`,
+    `Job Title: ${job_title || "—"}`,
+    `Purpose:   ${purpose || "—"}`,
+    `Notes:     ${info || "—"}`,
+  ].join("\n");
 
-  if (error) {
-    return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
+  try {
+    await sns.send(
+      new PublishCommand({
+        TopicArn: process.env.AWS_SNS_TOPIC_ARN!,
+        Subject: `Demo request: ${first_name} ${last_name} — ${company}`,
+        Message: message,
+      })
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("SNS publish failed:", err);
+    return NextResponse.json({ error: "Failed to publish notification" }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }
