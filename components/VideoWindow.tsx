@@ -99,7 +99,7 @@ export default function VideoWindow() {
         <aside className="vw-sidebar">
           <div className="vw-sidebar-header">
             <img src="/assets/ce-logo.png" alt="" className="vw-sidebar-logo" />
-            <span className="vw-project-name">CircuitEvolve</span>
+            <span className="vw-project-name">circuitEvolve</span>
             <span className="vw-chevron">⌄</span>
           </div>
 

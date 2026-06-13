@@ -100,6 +100,13 @@ export default function DemoForm() {
         {status === "processing" ? "Submitting…" : "Request Demo"}
       </button>
 
+      <p className="df-contact">
+        or reach us directly —{" "}
+        <a href="mailto:hello@circuitevolve.com" className="df-email-link">
+          hello@circuitevolve.com
+        </a>
+      </p>
+
     </form>
   );
 }
