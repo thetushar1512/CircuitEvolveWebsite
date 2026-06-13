@@ -2411,7 +2411,7 @@ button {
 
 .demo-card-right .df-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -2435,7 +2435,7 @@ button {
   border: none;
   border-radius: 0;
   padding: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 400;
   font-family: inherit;
   color: var(--ink);
@@ -2480,7 +2480,7 @@ button {
   border: none;
   border-radius: 0;
   padding: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 400;
   font-family: inherit;
   color: var(--ink);
@@ -3004,14 +3004,14 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: clamp(48px, 8vh, 96px) clamp(18px, 5vw, 72px);
+  padding: clamp(24px, 4vh, 48px) clamp(18px, 5vw, 72px);
   background: var(--paper);
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .footer-email {
   font-size: clamp(20px, 3vw, 32px);
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.02em;
   color: rgba(0, 0, 0, 0.45);
   text-decoration: none;
