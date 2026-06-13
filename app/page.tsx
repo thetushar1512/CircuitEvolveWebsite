@@ -61,6 +61,13 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Footer email ─────────────────────────────────────────────────── */}
+      <footer className="page-footer">
+        <a href="mailto:hello@circuitevolve.com" className="footer-email">
+          hello@circuitevolve.com
+        </a>
+      </footer>
+
       </main>
     </>
   );
