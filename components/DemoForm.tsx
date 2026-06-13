@@ -15,11 +15,26 @@ const purposes = [
 export default function DemoForm() {
   const [status, setStatus] = useState<Status>("idle");
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === "processing") return;
     setStatus("processing");
-    window.setTimeout(() => setStatus("confirmed"), 900);
+
+    const form = e.currentTarget;
+    const data = Object.fromEntries(new FormData(form));
+
+    const res = await fetch("/api/demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (res.ok) {
+      setStatus("confirmed");
+    } else {
+      setStatus("idle");
+      alert("Something went wrong — please try again or email us directly.");
+    }
   }
 
   if (status === "confirmed") {
