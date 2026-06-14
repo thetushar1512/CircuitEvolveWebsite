@@ -5,7 +5,16 @@ if (process.env.NODE_ENV !== "production") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const DEMO_EMAIL_TO = process.env.DEMO_REQUEST_TO_EMAIL ?? "hello@circuitevolve.com";
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "circuitEvolve <onboarding@resend.dev>";
+
 export async function POST(req: NextRequest) {
+  if (!RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY in environment.");
+    return NextResponse.json({ error: "Missing RESEND_API_KEY" }, { status: 500 });
+  }
+
   const body = await req.json();
   const { first_name, last_name, email, company, job_title, purpose, info } = body;
 
@@ -30,19 +39,19 @@ export async function POST(req: NextRequest) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "circuitEvolve <onboarding@resend.dev>",
-      to: "tushar.nandal678@gmail.com",
+      from: RESEND_FROM_EMAIL,
+      to: DEMO_EMAIL_TO,
       subject: `Demo request: ${first_name} ${last_name} — ${company}`,
       html,
     }),
   });
 
   const text = await res.text();
-  console.log("Resend status:", res.status, "body:", text);
+  console.error("Resend response:", res.status, text);
 
   if (!res.ok) {
     return NextResponse.json({ error: "Failed to send email", detail: text }, { status: 500 });
